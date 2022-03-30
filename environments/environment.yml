@@ -1,0 +1,14 @@
+name: simulate-long-reads
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3
+  - fastp=0.23.1
+  - badread=0.2.0
+  - minimap2=2.24
+  - samtools
+  - qualimap=2.2.2d
+  - mosdepth=0.3.2
+  - seqkit=2.2.0
