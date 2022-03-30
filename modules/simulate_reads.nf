@@ -165,7 +165,7 @@ process minimap2_align {
   publishDir "${params.outdir}/${output_subdir}", pattern: "${assembly_id}-${md5_fragment}.{bam,bam.bai}", mode: 'copy'
 
   input:
-  tuple val(assembly_id), val(md5_fragment), path(reads_1), path(reads_2), path(ref)
+  tuple val(assembly_id), val(md5_fragment), path(reads), path(ref)
 
   output:
   tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}.bam"), path("${assembly_id}-${md5_fragment}.bam.bai")
@@ -173,8 +173,10 @@ process minimap2_align {
   script:
   output_subdir = params.flat ? '' : assembly_id + '-' + md5_fragment
   """
-  bwa index ${ref}
-  bwa mem -t ${task.cpus} ${ref} ${reads_1} ${reads_2} | \
+  minimap2 -ax map-ont \
+    -t ${task.cpus} \
+    ${ref} \
+    ${reads} | \
     samtools sort -o ${assembly_id}-${md5_fragment}.bam -
   samtools index ${assembly_id}-${md5_fragment}.bam
   """

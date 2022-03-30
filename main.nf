@@ -35,8 +35,8 @@ workflow {
 
   main:
     fastp(ch_reads)
-    // bwa_align(ch_assemblies.cross(ch_reads).map{ it -> [it[1][0], it[1][1], it[1][2], it[1][3], it[0][1]] })
-    // samtools_stats(bwa_align.out)
-    // qualimap_bamqc(bwa_align.out)
-    // qualimap_bamqc_genome_results_to_csv(qualimap_bamqc.out.genome_results)
+    minimap2_align(ch_assemblies.cross(ch_reads).map{ it -> [it[1][0], it[1][1], it[1][2], it[0][1]] })
+    samtools_stats(minimap2_align.out)
+    qualimap_bamqc(minimap2_align.out)
+    qualimap_bamqc_genome_results_to_csv(qualimap_bamqc.out.genome_results)
 }
