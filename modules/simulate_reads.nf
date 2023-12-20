@@ -155,7 +155,7 @@ process fastp {
     
     output:
     tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_fastp.json"), emit: json
-    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_fastp.csv"), emit: csv
+    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_fastp.csv"), emit: fastp_csv
     tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_RL.fastq.gz"), emit: untrimmed_reads
     
     script:
@@ -209,54 +209,82 @@ process qualimap_bamqc {
     output:
     tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_bamqc/genome_results.txt"), emit: genome_results
     tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_bamqc"), emit: bamqc_dir
-    
+    tuple val(assembly_id), val(md5_fragment), path("${sample_id}-${md5_fragment}_qualimap_alignment_qc.csv"), emit: alignment_qc
+
     script:
     output_subdir = params.flat ? '' : assembly_id + '-' + md5_fragment
     """
-    qualimap bamqc -bam ${alignment} --outdir ${assembly_id}-${md5_fragment}_bamqc
+    qualimap bamqc \
+	-bam ${alignment} \
+	--outdir ${assembly_id}-${md5_fragment}_bamqc
+
+    qualimap_bamqc_genome_results_to_csv.py \
+	-s ${assembly_id}-${md5_fragment} \
+	${qualimap_bamqc_genome_results} \
+	> ${assembly_id}-${md5_fragment}_qualimap_alignment_qc.csv
     """
 }
 
-process qualimap_bamqc_genome_results_to_csv {
-
-    tag { assembly_id + '-' + md5_fragment }
-    
-    publishDir "${params.outdir}/${output_subdir}", mode: 'copy', pattern: "${assembly_id}-${md5_fragment}_qualimap_bamqc_genome_results.csv"
-    
-    executor 'local'
-    
-    input:
-    tuple val(assembly_id), val(md5_fragment), path(qualimap_bamqc_genome_results)
-    
-    output:
-    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_qualimap_bamqc_genome_results.csv")
-    
-    script:
-    output_subdir = params.flat ? '' : assembly_id + '-' + md5_fragment
-    """
-    qualimap_bamqc_genome_results_to_csv.py -s ${assembly_id}-${md5_fragment} ${qualimap_bamqc_genome_results} > ${assembly_id}-${md5_fragment}_qualimap_bamqc_genome_results.csv
-    """
-}
 
 process samtools_stats {
 
     tag { assembly_id + '-' + md5_fragment }
 
-    publishDir "${params.outdir}/${output_subdir}", mode: 'copy', pattern: "${assembly_id}-${md5_fragment}_samtools_stats_summary.txt"
+    publishDir "${params.outdir}/${output_subdir}", mode: 'copy', pattern: "${assembly_id}-${md5_fragment}_samtools_stats*"
 
     input:
-    tuple val(assembly_id), val(md5_fragment), file(alignment), file(alignment_index)
-    
+    tuple val(assembly_id), val(md5_fragment), path(alignment), path(alignment_index)
+
     output:
-    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_samtools_stats_summary.txt"), emit: summary
-  
+    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_samtools_stats.txt"), emit: stats
+    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_samtools_stats_summary.txt"), emit: stats_summary
+    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_samtools_stats_summary.csv"), emit: stats_summary_csv
+    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_samtools_stats_insert_sizes.tsv"), emit: insert_sizes
+    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_samtools_stats_coverage_distribution.tsv"), emit: coverage_distribution
+
     script:
     output_subdir = params.flat ? '' : assembly_id + '-' + md5_fragment
     """
-    samtools stats ${alignment} > ${assembly_id}-${md5_fragment}_samtools_stats.txt
-    grep ^SN ${assembly_id}-${md5_fragment}_samtools_stats.txt | cut -f 2- > ${assembly_id}-${md5_fragment}_samtools_stats_summary.txt
+    samtools stats \
+	--threads ${task.cpus} \
+	${alignment[0]} > ${assembly_id}-${md5_fragment}_samtools_stats.txt
+
+    grep '^SN' ${assembly_id}-${md5_fragment}_samtools_stats.txt | cut -f 2-  > ${assembly_id}-${md5_fragment}_samtools_stats_summary.txt
+
+    parse_samtools_stats_summary.py -i ${assembly_id}-${md5_fragment}_samtools_stats_summary.txt -s ${assembly_id} > ${assembly_id}-${md5_fragment}_samtools_stats_summary.csv
+
+    echo "insert_size,pairs_total,inward_oriented_pairs,outward_oriented_pairs,other_pairs" | tr ',' '\t' > ${assembly_id}-${md5_fragment}_samtools_stats_insert_sizes.tsv
+    grep '^IS' ${assembly_id}-${md5_fragment}_samtools_stats.txt | cut -f 2-  >> ${assembly_id}-${md5_fragment}_samtools_stats_insert_sizes.tsv
+
+    echo "coverage,depth" | tr ',' '\t' > ${assembly_id}-${md5_fragment}_samtools_stats_coverage_distribution.tsv
+    grep '^COV' ${assembly_id}-${md5_fragment}_samtools_stats.txt | cut -f 2- >> ${assembly_id}-${md5_fragment}_samtools_stats_coverage_distribution.tsv	
     """
 }
+
+
+process combine_alignment_qc {
+
+    tag { assembly_id + '-' + md5_fragment }
+
+    publishDir "${params.outdir}/${assembly_id}", mode: 'copy', pattern: "${assembly_id}-${md5_fragment}_long_combined_alignment_qc.csv"
+
+    input:
+    tuple val(assembly_id), val(md5_fragment), path(qualimap_genome_results_csv), path(samtools_stats_summary_csv)
+
+    output:
+    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_long_combined_alignment_qc.csv")
+
+    script:
+    """
+    combine_alignment_qc.py \
+	--sample-id ${assembly_id} \
+	--read-type "long" \
+	--qualimap-bamqc-genome-results ${qualimap_genome_results_csv} \
+	--samtools-stats-summary ${samtools_stats_summary_csv} \
+	> ${assembly_id}-${md5_fragment}_long_combined_alignment_qc.csv
+    """
+}
+
 
 process mosdepth {
     
