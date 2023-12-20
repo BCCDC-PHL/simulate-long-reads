@@ -209,7 +209,7 @@ process qualimap_bamqc {
     output:
     tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_bamqc/genome_results.txt"), emit: genome_results
     tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_bamqc"), emit: bamqc_dir
-    tuple val(assembly_id), val(md5_fragment), path("${sample_id}-${md5_fragment}_qualimap_alignment_qc.csv"), emit: alignment_qc
+    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_qualimap_alignment_qc.csv"), emit: alignment_qc
 
     script:
     output_subdir = params.flat ? '' : assembly_id + '-' + md5_fragment
@@ -220,7 +220,7 @@ process qualimap_bamqc {
 
     qualimap_bamqc_genome_results_to_csv.py \
 	-s ${assembly_id}-${md5_fragment} \
-	${qualimap_bamqc_genome_results} \
+	${assembly_id}-${md5_fragment}_bamqc/genome_results.txt \
 	> ${assembly_id}-${md5_fragment}_qualimap_alignment_qc.csv
     """
 }
@@ -277,7 +277,7 @@ process combine_alignment_qc {
     script:
     """
     combine_alignment_qc.py \
-	--sample-id ${assembly_id} \
+	--sample-id ${assembly_id}-${md5_fragment} \
 	--read-type "long" \
 	--qualimap-bamqc-genome-results ${qualimap_genome_results_csv} \
 	--samtools-stats-summary ${samtools_stats_summary_csv} \
