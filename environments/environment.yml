@@ -2,7 +2,6 @@ name: simulate-long-reads
 channels:
   - conda-forge
   - bioconda
-  - defaults
 dependencies:
   - python=3
   - fastp=0.23.1
