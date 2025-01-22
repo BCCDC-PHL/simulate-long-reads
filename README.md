@@ -5,13 +5,11 @@ microbial genomics analysis pipelines. When used in that application, the simula
 that incorporates real sequencing data that is derived from real sequencing runs on instuments that are identical or as similar as possible to those
 that will be used in production.
 
-After simulating the reads, they are mapped back onto the input genomes using [`minimap2`](https://github.com/lh3/minimap2). QC statistics are collected
-from the alignment using [`qualimap`](https://github.com/scchess/Qualimap) and [`samtools`](https://github.com/samtools/samtools).
+Reads are simulated using [Badread](https://github.com/rrwick/Badread). After simulating the reads, they are mapped back onto the input genomes using 
+[`minimap2`](https://github.com/lh3/minimap2). QC statistics are collected from the alignment using [`qualimap`](https://github.com/scchess/Qualimap) 
+and [`samtools`](https://github.com/samtools/samtools).
 
 Some basic quality statistics are also collected on the simulated reads using [`fastp`](https://github.com/OpenGene/fastp).
-
-The pipeline currently supports oxford nanopore reads, simulated using the [Badread](https://github.com/rrwick/Badread)
-simulator, using its default error profile.
 
 ## Dependencies
 Dependencies are listed in [environments.yml](environments/environment.yml). When using the `conda` profile, they will be installed automatically.
@@ -31,17 +29,37 @@ nextflow run BCCDC-PHL/simulate-long-reads \
   --outdir </path/to/outdir>
 ```
 
-Several parameters are available to control the quality and quantity of the simulated reads. The pipeline will automatically create simulated outputs at
-eight mean coverage depths: 5x, 15x, 25x, 35x, 50x, 75x, 100x, 150x.
+Several parameters are available to control the quality and quantity of the simulated reads.
 
-| Parameter               | Description                                                                                                                | Default |
-|:------------------------|:---------------------------------------------------------------------------------------------------------------------------|--------:|
-| `mean_read_length`      | Mean length of the reads to be simulated (bases).                                                                          | 15000   |
-| `stdev_read_length`     | Standard deviation of the length of the reads to be simulated (bases).                                                     | 13000   |
-| `percent_junk_reads`    | This percentage of reads will be low-complexity junk.                                                                      | 1       |
-| `percent_random_reads`  | This percentage of reads will be random sequence.                                                                          | 1       |
-| `percent_chimeras`      | Percentage at which separate fragments join together.                                                                      | 1       |
-| `replicates`            | Number of replicates to generate for each genome, at each depth.                                                           | 1       |
+| Parameter              | Description                                                                                                                        |        Default |
+|:-----------------------|:-----------------------------------------------------------------------------------------------------------------------------------|---------------:|
+| `mean_read_length`     | Mean length of the reads to be simulated (bases).                                                                                  |          15000 |
+| `stdev_read_length`    | Standard deviation of the length of the reads to be simulated (bases).                                                             |          13000 |
+| `percent_junk_reads`   | This percentage of reads will be low-complexity junk.                                                                              |              1 |
+| `percent_random_reads` | This percentage of reads will be random sequence.                                                                                  |              1 |
+| `percent_chimeras`     | Percentage at which separate fragments join together.                                                                              |              1 |
+| `error_model`          | The [error model](https://github.com/rrwick/Badread?tab=readme-ov-file#error-model) used when generating reads                     | `nanopore2023` |
+| `qscore_model`         | The [qscore model](https://github.com/rrwick/Badread?tab=readme-ov-file#qscore-model) used when generating reads                   | `nanopore2023` |
+| `identity_mean`        | The mean [identity](https://github.com/rrwick/Badread?tab=readme-ov-file#read-identities) for simulated reads                      |             95 |
+| `identity_max`         | The max [identity](https://github.com/rrwick/Badread?tab=readme-ov-file#read-identities) for simulated reads                       |             99 |
+| `identity_stdev`       | The standard deviation of the [identity](https://github.com/rrwick/Badread?tab=readme-ov-file#read-identities) for simulated reads |            2.5 |
+| `replicates`           | Number of replicates to generate for each genome, at each depth.                                                                   |              1 |
+
+
+### Error Model and QScore Model
+
+The possible values for the `--error_model` and `--qscore_model` are:
+
+* `nanopore2023`: a model trained on ONT R10.4.1 reads from 2023 (the default)
+* `nanopore2020`: a model trained on ONT R9.4.1 reads from 2020
+* `nanopore2018`: a model trained on ONT R9.4/R9.4.1 reads from 2018
+* `pacbio2016`: a model trained on PacBio RS II reads from 2016
+* `pacbio2021`: a model trained on PacBio Sequel IIe HiFi reads from 2021
+* `random`: a random error model with 1/3 chance each of insertion, deletion and substitution
+
+The `--qscore_model` param also supports:
+
+* `ideal`: a model where scores are unrealistically informative about read/base quality
 
 ### Introducing Contamination
 Contamination can be introduced using the `--contaminants` parameter. The flag takes a `.csv` formatted file as an argument, with the following fields:
@@ -142,6 +160,11 @@ stdev_read_length
 junk_reads_percent
 random_reads_percent
 chimeras_percent
+error_model
+qscore_model
+identity_mean
+identity_max
+identity_stdev
 ```
 
 If contaminants are included, then a `contaminants` sub-directory will be created within each output directory. That directory includes files named with the simulated library ID and the contaminant ID, followed by `_num_contaminant_read_pairs.csv`. Those files have the following headers:
