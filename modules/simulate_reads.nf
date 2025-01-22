@@ -17,8 +17,14 @@ process badread_simulate {
     junk_reads = params.percent_junk_reads
     random_reads = params.percent_random_reads
     chimeras = params.percent_chimeras
+    error_model = params.error_model
+    qscore_model = params.qscore_model
+    identity_mean = params.identity_mean
+    identity_max = params.identity_max
+    identity_stdev = params.identity_stdev
     seed = Math.round(Math.random() * 1000000)
-    md5_input = assembly_id + fold_coverage.toString() + mean_read_length.toString() + stdev_read_length.toString() + junk_reads.toString() + random_reads.toString() + chimeras.toString() + seed.toString()
+    md5_input = assembly_id + fold_coverage.toString() + mean_read_length.toString() + stdev_read_length.toString() + junk_reads.toString() + random_reads.toString() + chimeras.toString() + \
+    	      	error_model.toString() + qscore_model.toString() + identity_mean.toString() + identity_max.toString() + identity_stdev.toString() + seed.toString()
     md5_fragment = md5_input.md5()[0..3]
     output_subdir = params.flat ? '' : assembly_id + '-' + md5_fragment
     """
@@ -31,10 +37,13 @@ process badread_simulate {
 	--junk_reads ${junk_reads} \
 	--random_reads ${random_reads} \
 	--chimeras ${chimeras} \
+	--error_model ${error_model} \
+	--qscore_model ${qscore_model} \
+	--identity ${identity_mean},${identity_max},${identity_stdev} \
 	> ${assembly_id}-${md5_fragment}_RL.fastq
 
-    echo 'sample_id,replicate,random_seed,fold_coverage,mean_read_length,stdev_read_length,junk_reads_percent,random_reads_percent,chimeras_percent' > ${assembly_id}-${md5_fragment}_read_simulation_parameters.csv
-    echo '${assembly_id}-${md5_fragment},${replicate},${seed},${fold_coverage},${mean_read_length},${stdev_read_length},${junk_reads},${random_reads},${chimeras}' >> ${assembly_id}-${md5_fragment}_read_simulation_parameters.csv
+    echo 'sample_id,replicate,random_seed,fold_coverage,mean_read_length,stdev_read_length,junk_reads_percent,random_reads_percent,chimeras_percent,error_model,qscore_model,identity_mean,identity_max,identity_stdev' > ${assembly_id}-${md5_fragment}_read_simulation_parameters.csv
+    echo '${assembly_id}-${md5_fragment},${replicate},${seed},${fold_coverage},${mean_read_length},${stdev_read_length},${junk_reads},${random_reads},${chimeras},${error_model},${qscore_model},${identity_mean},${identity_max},${identity_stdev}' >> ${assembly_id}-${md5_fragment}_read_simulation_parameters.csv
     """
 }
 
@@ -283,28 +292,5 @@ process combine_alignment_qc {
 	--qualimap-bamqc-genome-results ${qualimap_genome_results_csv} \
 	--samtools-stats-summary ${samtools_stats_summary_csv} \
 	> ${assembly_id}-${md5_fragment}_combined_alignment_qc.csv
-    """
-}
-
-
-process mosdepth {
-    
-    tag { assembly_id + '-' + md5_fragment }
-    
-    publishDir "${params.outdir}/${output_subdir}", mode: 'copy', pattern: "${assembly_id}-${md5_fragment}_samtools_stats_summary.txt"
-    
-    input:
-    tuple val(assembly_id), val(md5_fragment), file(alignment), file(alignment_index), val(depth_by)
-
-    output:
-    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_by_${depth_by}.mosdepth.summary.txt"), emit: summary
-    tuple val(assembly_id), val(md5_fragment), path("${assembly_id}-${md5_fragment}_by_${depth_by}.mosdepth.summary.txt"), emit: regions
-    
-    script:
-    output_subdir = params.flat ? '' : assembly_id + '-' + md5_fragment
-    """
-    mosdepth -t ${task.cpus} --fast-mode --by ${depth_by} --no-per-base ${assembly_id}-${md5_fragment}_by_${depth_by} ${alignment}
-    gunzip ${assembly_id}-${md5_fragment}_by_${depth_by}.regions.bed.gz
-    mv ${assembly_id}-${md5_fragment}_by_${depth_by}.regions.bed ${assembly_id}-${md5_fragment}_by_${depth_by}.mosdepth.regions.bed
     """
 }
