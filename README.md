@@ -167,7 +167,7 @@ identity_max
 identity_stdev
 ```
 
-If contaminants are included, then a `contaminants` sub-directory will be created within each output directory. That directory includes files named with the simulated library ID and the contaminant ID, followed by `_num_contaminant_read_pairs.csv`. Those files have the following headers:
+If contaminants are included, then a `contaminants` sub-directory will be created within each output directory. That directory includes files named with the simulated library ID and the contaminant ID, followed by `_num_contaminant_reads.csv`. Those files have the following headers:
 
 ```
 sample_id
