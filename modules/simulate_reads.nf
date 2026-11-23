@@ -73,7 +73,7 @@ process simulate_contaminant_reads {
 	--junk_reads ${junk_reads} \
 	--random_reads ${random_reads} \
 	--chimeras ${chimeras} \
-	> ${assembly_id}-${md5_fragment}_RL.fastq
+	> ${contaminant_id}_RL.fastq
     """
 }
 
@@ -120,9 +120,9 @@ process downsample_contaminant_reads {
     """
     seqkit stats -T ${assembly_reads} | tail -n 1 | cut -f 4 | tr -d ',' > num_simulated_reads
 
-    echo 'sample_id,contaminant_id,num_simulated_reads,num_contaminant_reads,target_contaminant_proportion' > ${assembly_id}-${md5_fragment}-${contaminant_id}_num_contaminant_read_pairs.csv
+    echo 'sample_id,contaminant_id,num_simulated_reads,num_contaminant_reads,target_contaminant_proportion' > ${assembly_id}-${md5_fragment}-${contaminant_id}_num_contaminant_reads.csv
 
-    python -c "import sys; print(int(round(int(sys.stdin.read().strip()) * ${contaminant_proportion})))" < num_simulated_read_pairs > num_contaminant_read_pairs
+    python -c "import sys; print(int(round(int(sys.stdin.read().strip()) * ${contaminant_proportion})))" < num_simulated_reads > num_contaminant_reads
 
     paste -d ',' <(echo "${assembly_id}-${md5_fragment}") <(echo "${contaminant_id}") num_simulated_reads num_contaminant_reads <(echo "${contaminant_proportion}") >> ${assembly_id}-${md5_fragment}-${contaminant_id}_num_contaminant_reads.csv
 
